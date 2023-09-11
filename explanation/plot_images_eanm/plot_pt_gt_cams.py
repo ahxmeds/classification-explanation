@@ -1,4 +1,5 @@
 #%%
+#%%
 import torch
 import torch.nn as nn
 from torchvision import transforms, models
@@ -10,10 +11,14 @@ from scipy.ndimage import center_of_mass
 import matplotlib.pyplot as plt 
 import nibabel as nib 
 import torch
-import utils
 from pytorch_grad_cam.utils.model_targets import BinaryClassifierOutputTarget
 from pytorch_grad_cam import LayerCAM, GradCAM, EigenCAM, ScoreCAM
-from transformations import resize_2dtensor_nearest, resize_2dtensor_bilinear, stack_slices, pt_preprocess_1
+from matplotlib.patches import Circle
+import sys 
+from glob import glob
+sys.path.append('/home/jhubadmin/Projects/classification-explanation')
+import explanation.utils as utils 
+from explanation.transformations import resize_2dtensor_nearest, resize_2dtensor_bilinear, stack_slices, pt_preprocess_1
 # %%
 def save_slice_nifti(array2d, savepath):
     img = nib.Nifti1Image(array2d, affine=np.eye(4))
@@ -80,11 +85,11 @@ def get_all_true_negative_imageids(df):
     tn_imageids = df_bg_tn['ImageID'].values
     tn_datasetids = df_bg_tn['DatasetID'].values
     return tn_imageids, tn_datasetids
-
 # %%
-df = pd.read_csv('truth_probs.csv')
+df = pd.read_csv('/home/jhubadmin/Projects/classification-explanation/explanation/truth_probs.csv')
 imageids_to_run, datasetids_to_run = get_all_positive_imageids(df)
-camtype = 'gradcam'
+imageids_to_run = list(imageids_to_run)
+datasetids_to_run = list(datasetids_to_run)
 #%%
 optimal_model_dir = '/data/blobfuse/default/saved_models/classification/saved_models_resnet18_focalloss_ptlevelsplit_nocenter_nofreeze'
 optimal_model_name = 'classification_ep=005.pth'
@@ -106,40 +111,41 @@ pbc_bg_gtdir = '/data/blobfuse/default/PMBCL_bccancer/patient_level_train_test_s
 dsk_bg_ptdir = '/data/blobfuse/default/DLBCL_southkorea/patient_level_train_test_split/test/axial_data/pt_bg'
 dsk_bg_gtdir = '/data/blobfuse/default/DLBCL_southkorea/patient_level_train_test_split/test/axial_data/gt_bg'
 
-# %%
-def get_model():
-    # load model
-    model = models.resnet18(pretrained=True) 
-    for param in model.parameters():
-        param.requires_grad = True
-    # changing avgpool and fc layers
-    model.avgpool = nn.AdaptiveAvgPool2d(output_size=(1,1))
-    model.fc = nn.Sequential(
-        nn.Flatten(),
-        nn.Linear(512,128),
-        nn.ReLU(),
-        nn.Dropout(0.2),
-        nn.Linear(128,1),
-        nn.Sigmoid()
-        )
-    return model 
-model = get_model().to('cuda:0') 
-# %%
-saved_model_path = os.path.join(optimal_model_dir, optimal_model_name)
-model.load_state_dict(torch.load(saved_model_path, map_location='cuda:0'))
-model.eval()
-target_layers = [model.layer4[-1]]
-target = 1
+
+cams_dir = '/data/blobfuse/default/eanm_lymphoma_data/resnet18_cam_lastlayer'
+gradcam_dir = os.path.join(cams_dir, 'gradcam')
+gradcamplusplus_dir =  os.path.join(cams_dir, 'gradcamplusplus')
+eigencam_dir =  os.path.join(cams_dir, 'eigencam')
+scorecam_dir =  os.path.join(cams_dir, 'scorecam')
+
+gradcam_paths = [os.path.join(gradcam_dir, f"{imageids_to_run[i]}.npy") for i in range(len(imageids_to_run))]
+gradcamplusplus_paths = [os.path.join(gradcamplusplus_dir, f"{imageids_to_run[i]}.npy") for i in range(len(imageids_to_run))]
+eigencam_paths = [os.path.join(eigencam_dir, f"{imageids_to_run[i]}.npy") for i in range(len(imageids_to_run))]
+scorecam_paths = [os.path.join(scorecam_dir, f"{imageids_to_run[i]}.npy") for i in range(len(imageids_to_run))]
 def get_centroid(heatmap):
     weighted_centroid = center_of_mass(heatmap)
     return weighted_centroid
+
 #%%
-savedir = f'/data/blobfuse/default/eanm_lymphoma_data/resnet18_cam_lastlayer/{camtype}'
-os.makedirs(savedir, exist_ok=True)
-count = 0
-for i in range(3000, 3002):
-    datasetid = datasetids_to_run[i]
-    imageid = imageids_to_run[i]
+imageids_required = [
+    '800156517_20161011_132_ax_fg',
+    '936634454_20190621_163_ax_fg',
+    '420430641_20200409_188_ax_fg',
+    '351588753_20180806_070_ax_fg',
+    '17-12133_20170619_199_ax_fg',
+    '10-13830_20100629_110_ax_fg'
+]
+
+datasetids_required = []
+for id in imageids_required:
+    idx = imageids_to_run.index(id)
+    datasetids_required.append(datasetids_to_run[idx])
+
+#%%
+x = 500
+for i in range(len(imageids_required)):
+    datasetid = datasetids_required[i]
+    imageid = imageids_required[i]
     if imageid.endswith('fg'):
         if datasetid == 'DLBCL_bccancer':
             ptpath = os.path.join(dbc_fg_ptdir, imageid+'.nii.gz')
@@ -168,34 +174,33 @@ for i in range(3000, 3002):
 
     datapt_resized = resize_2dtensor_bilinear(datapt, 224, 224)
     datagt_resized = resize_2dtensor_nearest(datagt, 224, 224)
-    
-    inputpt = input_pt_preprocess(datapt)
-    model.eval() 
-    output = model(inputpt.to('cuda:0'))
-    decision = 'FG' if output.item() >= 0.5 else 'BG'
+    gradcampath = os.path.join(gradcam_dir, f'{imageid}.npy')
+    gradcam = np.load(gradcampath)
+    center = get_centroid(gradcam)
+    circle = Circle((center[1], center[0]), 20, fill=False, edgecolor='black', linewidth=2)
 
-    cam = EigenCAM(model=model, target_layers=target_layers, use_cuda=True)
-
-    grayscale_cam = cam(input_tensor=inputpt, targets=[BinaryClassifierOutputTarget(target)], eigen_smooth=True, aug_smooth=True)
-    grayscale_cam_1c = grayscale_cam[0, :]
-    center = get_centroid(grayscale_cam_1c)
-
-    fig, ax = plt.subplots(1,4)
-    ax[0].imshow(datapt_resized, cmap='Greys')
-    ax[1].imshow(datagt_resized, cmap='Greys')
-    ax[2].imshow(datagt_resized, cmap='Greys')
-    ax[2].scatter(center[1], center[0], color='red')
-    ax[3].imshow(grayscale_cam_1c, cmap='Greys')
-    ax[3].scatter(center[1], center[0], color='red')
-    for j in range(4):
-        ax[j].axis('off')
+    print(imageid)
+    fig, ax = plt.subplots(1, 3, figsize=(12,3), gridspec_kw={'wspace': 0, 'hspace': 0})
+    fig.patch.set_facecolor('white')
+    fig.patch.set_alpha(1)
+    pt = ax[0].imshow(datapt_resized, cmap='nipy_spectral')
+    gt1 = ax[1].imshow(datagt_resized, cmap='Greys')
+    gt2 = ax[2].imshow(datagt_resized)
+    cam = ax[2].imshow(gradcam, cmap='nipy_spectral', alpha=0.5)
+    ax[0].set_title('PET', fontsize=20)
+    ax[1].set_title('GT', fontsize=20)
+    ax[2].set_title('GradCAM + COM', fontsize=20)
+    fig.colorbar(pt, ax=ax[0])
+    fig.colorbar(gt1, ax=ax[1])
+    fig.colorbar(cam, ax=ax[2])
+    for j in range(3):
+        ax[j].set_xticks([])
+        ax[j].set_yticks([])
+    ax[2].scatter(center[1], center[0], color='red', edgecolor='black', s=80)
+    ax[2].add_patch(circle)
     plt.show()
     plt.close('all')
 
-    imagename = f"{imageid}.npy"
-    savepath = os.path.join(savedir, imagename)
-    np.save(savepath, grayscale_cam_1c)
-    print(f"{count}: Done with image: {imageid}")
-    count+= 1
-
+    
+    
 # %%

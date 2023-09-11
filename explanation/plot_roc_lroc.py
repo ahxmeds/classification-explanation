@@ -23,8 +23,8 @@ def get_required_localization_data(localization_data, imageids):
     return required_localization_data
 # %%
 data  = pd.read_csv('truth_probs.csv')
-camtype = 'random'
-sdir = '/home/shadab/Projects/classification-explanation/explanation/empirical_lroc_lastlayer'
+camtype = 'gradcam'
+sdir = '/home/jhubadmin/projects/classification-explanation/explanation/empirical_lroc_lastlayer'
 os.makedirs(sdir, exist_ok=True)
 localization_fpath = os.path.join(sdir, f"{camtype}_empirical_lroc.csv")
 localization_data = pd.read_csv(localization_fpath)

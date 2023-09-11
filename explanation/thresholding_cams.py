@@ -215,7 +215,7 @@ for i in range(len(radii)):
 
 
 data_df = pd.DataFrame(data, columns=column_names)
-sdir = '/home/shadab/Projects/classification-explanation/explanation/empirical_lroc_lastlayer'
+sdir = '/home/jhubadmin/Projects/classification-explanation/explanation/empirical_lroc_lastlayer'
 os.makedirs(sdir, exist_ok=True)
 spath = os.path.join(sdir, f'{camtype}_empirical_lroc.csv')
 data_df.to_csv(spath, index=False)

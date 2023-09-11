@@ -88,7 +88,7 @@ def plot_empirical_LROC(lroc_fpaths, legend_labels, vln):
 
 # %%
 legend_labels=['GradCAM', 'GradCAM++', 'EigenCAM', 'LayerCAM', 'Random Localizer']
-dir = '/home/shadab/Projects/classification-explanation/explanation/empirical_lroc_lastlayer'
+dir = '/home/jhubadmin/Projects/classification-explanation/explanation/empirical_lroc_lastlayer'
 gradcampath = os.path.join(dir, 'gradcam_empirical_lroc.csv')
 gradcampluspluscampath = os.path.join(dir, 'gradcamplusplus_empirical_lroc.csv')
 eigencampath = os.path.join(dir, 'eigencam_empirical_lroc.csv')
@@ -99,7 +99,7 @@ plot_empirical_LROC(allpaths, legend_labels, vln=20)
 
 # %%
 legend_labels=['ROC', 'LROC-GradCAM', 'LROC-GradCAM++', 'LROC-EigenCAM', 'LROC-LayerCAM', 'LROC: Random Localizer']#, 'Random Localizer']
-dir = '/home/shadab/Projects/classification-explanation/explanation/lroc_plot_data'
+dir = '/home/jhubadmin/Projects/classification-explanation/explanation/lroc_plot_data'
 rocpath = os.path.join(dir, 'roc_plot_data.csv')
 gradcamlrocpath = os.path.join(dir, 'gradcam_lroc_plot_data.csv')
 gradcampluspluslrocpath = os.path.join(dir, 'gradcamplusplus_lroc_plot_data.csv')
