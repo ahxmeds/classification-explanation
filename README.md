@@ -1,7 +1,7 @@
 # classification-explanation
 
 The work in this repository is associated with the following abstract:  
-> S. Ahamed, C. F. Uribe, A. Rahmim, "Estimating the Tumor Localization Performance via Class-Activation Map Explanations of a Slice Classification Neural Network Without Pixel-Level Supervision." *EANM* 2022.
+> S. Ahamed, C. F. Uribe, A. Rahmim, "Estimating the Tumor Localization Performance via Class-Activation Map Explanations of a Slice Classification Neural Network Without Pixel-Level Supervision." *EANM* 2023.
 
 The work was submitted as an abstract to the European Association of Nuclear Medicine (EANM) 2023 congress held at Vienna, Austria from 9-13 September, 2023. The abstract can be found here: 
 https://link.springer.com/article/10.1007/s00259-023-06333-x
